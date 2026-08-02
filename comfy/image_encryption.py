@@ -53,12 +53,18 @@ def _derive_key(code: bytes) -> bytes:
 
 
 def is_encrypted_image_file(path: str) -> bool:
+    return get_encrypted_image_record(path) is not None
+
+
+def get_encrypted_image_record(path: str) -> dict[str, str] | None:
     try:
         with open(path, "r", encoding="utf-8") as file:
             payload = json.load(file)
-            return isinstance(payload.get("code"), str) and isinstance(payload.get("data"), str)
+            if isinstance(payload.get("code"), str) and isinstance(payload.get("data"), str):
+                return payload
     except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
-        return False
+        pass
+    return None
 
 
 def encrypt_image_file(path: str) -> None:
@@ -80,11 +86,8 @@ def encrypt_image_file(path: str) -> None:
 def decrypt_image_file(path: str) -> bytes:
     with open(path, "rb") as file:
         contents = file.read()
-    try:
-        payload = json.loads(contents)
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return contents
-    if not isinstance(payload.get("code"), str) or not isinstance(payload.get("data"), str):
+    payload = get_encrypted_image_record(path)
+    if payload is None:
         return contents
 
     encrypted = base64.b64decode(payload["data"])

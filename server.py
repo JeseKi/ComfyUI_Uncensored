@@ -41,7 +41,7 @@ import comfy.model_management
 from comfy_api import feature_flags
 from comfy.comfy_api_env import get_environment_overrides
 import node_helpers
-from comfy.image_encryption import decrypt_image_file, encrypt_image_file, initialize_image_encryption
+from comfy.image_encryption import decrypt_image_file, encrypt_image_file, get_encrypted_image_record, initialize_image_encryption
 from comfyui_version import __version__
 from app.frontend_management import FrontendManager, parse_version
 from comfy_api.internal import _ComfyNodeInternal
@@ -559,6 +559,10 @@ class PromptServer():
                     file = os.path.join(output_dir, filename)
 
                 if os.path.isfile(file):
+                    encrypted_image = get_encrypted_image_record(file)
+                    if encrypted_image is not None:
+                        return web.json_response(encrypted_image, headers={"Cache-Control": "no-store"})
+
                     image_data = decrypt_image_file(file)
                     if 'preview' in request.rel_url.query:
                         with Image.open(BytesIO(image_data)) as img:
