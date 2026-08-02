@@ -41,7 +41,7 @@ import comfy.model_management
 from comfy_api import feature_flags
 from comfy.comfy_api_env import get_environment_overrides
 import node_helpers
-from comfy.image_encryption import decrypt_image_file, encrypt_image_file
+from comfy.image_encryption import decrypt_image_file, encrypt_image_file, initialize_image_encryption
 from comfyui_version import __version__
 from app.frontend_management import FrontendManager, parse_version
 from comfy_api.internal import _ComfyNodeInternal
@@ -215,6 +215,7 @@ def create_block_external_middleware():
 
 class PromptServer():
     def __init__(self, loop):
+        initialize_image_encryption()
         PromptServer.instance = self
 
         self.user_manager = UserManager()

@@ -19,6 +19,11 @@ PBKDF2_ITERATIONS = 600_000
 _salt = None
 
 
+def initialize_image_encryption() -> None:
+    if args.encrypt_uploaded_images:
+        _get_salt()
+
+
 def _get_salt() -> bytes:
     global _salt
     if _salt is not None:
