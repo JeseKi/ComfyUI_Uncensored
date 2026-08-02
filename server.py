@@ -41,6 +41,7 @@ import comfy.model_management
 from comfy_api import feature_flags
 from comfy.comfy_api_env import get_environment_overrides
 import node_helpers
+from comfy.image_encryption import decrypt_image_file, encrypt_image_file
 from comfyui_version import __version__
 from app.frontend_management import FrontendManager, parse_version
 from comfy_api.internal import _ComfyNodeInternal
@@ -387,10 +388,9 @@ class PromptServer():
             if os.path.exists(filepath):
                 a = hasher()
                 b = hasher()
-                with open(filepath, "rb") as f:
-                    a.update(f.read())
-                    b.update(image.file.read())
-                    image.file.seek(0)
+                a.update(decrypt_image_file(filepath))
+                b.update(image.file.read())
+                image.file.seek(0)
                 return a.hexdigest() == b.hexdigest()
             return False
 
@@ -437,6 +437,8 @@ class PromptServer():
                     else:
                         with open(filepath, "wb") as f:
                             f.write(image.file.read())
+                    if args.encrypt_uploaded_images:
+                        encrypt_image_file(filepath)
 
                 resp = {"name" : filename, "subfolder": subfolder, "type": image_upload_type}
 
@@ -556,8 +558,9 @@ class PromptServer():
                     file = os.path.join(output_dir, filename)
 
                 if os.path.isfile(file):
+                    image_data = decrypt_image_file(file)
                     if 'preview' in request.rel_url.query:
-                        with Image.open(file) as img:
+                        with Image.open(BytesIO(image_data)) as img:
                             preview_info = request.rel_url.query['preview'].split(';')
                             image_format = preview_info[0]
                             if image_format not in ['webp', 'jpeg'] or 'a' in request.rel_url.query.get('channel', ''):
@@ -582,7 +585,7 @@ class PromptServer():
                         channel = request.rel_url.query["channel"]
 
                     if channel == 'rgb':
-                        with Image.open(file) as img:
+                        with Image.open(BytesIO(image_data)) as img:
                             if img.mode == "RGBA":
                                 r, g, b, a = img.split()
                                 new_img = Image.merge('RGB', (r, g, b))
@@ -597,7 +600,7 @@ class PromptServer():
                                                 headers={"Content-Disposition": f"filename=\"{filename}\""})
 
                     elif channel == 'a':
-                        with Image.open(file) as img:
+                        with Image.open(BytesIO(image_data)) as img:
                             if img.mode == "RGBA":
                                 _, _, _, a = img.split()
                             else:
@@ -656,7 +659,7 @@ class PromptServer():
 
                         headers["Content-Disposition"] = disposition
                         headers["Content-Type"] = content_type
-                        return web.FileResponse(file, headers=headers)
+                        return web.Response(body=image_data, headers=headers)
 
             return web.Response(status=404)
 
